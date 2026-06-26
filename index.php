@@ -23,6 +23,16 @@ $student = new student();
             }
             exit;
         }
+        elseif($_POST['action'] == 'add'){
+            $name = $_POST['fullname'];
+            $course = $_POST['course'];
+            if($student->store($name, $course)){
+                echo json_encode(['success' => true, 'message' => 'Student added successfully']);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Failed to add student']);
+            }
+            exit;
+        }
     }
 ?>
 <!DOCTYPE html>
@@ -79,5 +89,57 @@ $student = new student();
     </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Fetch and display students on page load
+        function fetchStudents() {
+            fetch('index.php', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: 'action=fetch'
+            })
+            .then(response => response.text())
+            .then(data => {
+                document.getElementById('studentTableBody').innerHTML = data;
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        // Load students on page load
+        document.addEventListener('DOMContentLoaded', fetchStudents);
+
+        // Handle add student form submission
+        document.getElementById('addStudentForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData();
+            formData.append('action', 'add');
+            formData.append('fullname', document.getElementById('fullname').value);
+            formData.append('course', document.getElementById('course').value);
+
+            fetch('index.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if(data.success) {
+                    // Close modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('addStudentModal'));
+                    modal.hide();
+                    
+                    // Reset form
+                    document.getElementById('addStudentForm').reset();
+                    
+                    // Refresh student list
+                    fetchStudents();
+                    
+                    alert('Student added successfully!');
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        });
+    </script>
 </body>
 </html>
