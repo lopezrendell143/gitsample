@@ -33,6 +33,28 @@ $student = new student();
             }
             exit;
         }
+        // --- NEW: PHP UPDATE LOGIC ---
+        elseif($_POST['action'] == 'update'){
+            $id = $_POST['id'];
+            $name = $_POST['fullname'];
+            $course = $_POST['course'];
+            if($student->update($id, $name, $course)){ // Assumes update() exists in your student class
+                echo json_encode(['success' => true, 'message' => 'Student updated successfully']);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Failed to update student']);
+            }
+            exit;
+        }
+        // --- NEW: PHP DELETE LOGIC ---
+        elseif($_POST['action'] == 'delete'){
+            $id = $_POST['id'];
+            if($student->delete($id)){ // Assumes delete() exists in your student class
+                echo json_encode(['success' => true, 'message' => 'Student deleted successfully']);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Failed to delete student']);
+            }
+            exit;
+        }
     }
 ?>
 <!DOCTYPE html>
@@ -44,7 +66,7 @@ $student = new student();
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
-    <div class="container">
+    <div class="container mt-5">
         <div class="row">
             <div class="col-md-12">
                 <h1>Student List</h1>
@@ -58,8 +80,7 @@ $student = new student();
                         </tr>
                     </thead>
                     <tbody id="studentTableBody">
-                        <!-- Student data will be populated here -->
-                    </tbody>
+                        </tbody>
                 </table>
             </div>
         </div>
@@ -87,6 +108,32 @@ $student = new student();
             </div>
         </div>
     </div>
+
+    <div class="modal fade" id="editStudentModal" tabindex="-1" aria-labelledby="editStudentModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editStudentModalLabel">Edit Student</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editStudentForm">
+                        <input type="hidden" id="edit_id">
+                        <div class="mb-3">
+                            <label for="edit_fullname" class="form-label">Full Name</label>
+                            <input type="text" class="form-control" id="edit_fullname" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_course" class="form-label">Course</label>
+                            <input type="text" class="form-control" id="edit_course" required>
+                        </div>
+                        <button type="submit" class="btn btn-warning">Update Student</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
@@ -123,17 +170,85 @@ $student = new student();
             .then(response => response.json())
             .then(data => {
                 if(data.success) {
-                    // Close modal
                     const modal = bootstrap.Modal.getInstance(document.getElementById('addStudentModal'));
                     modal.hide();
-                    
-                    // Reset form
                     document.getElementById('addStudentForm').reset();
-                    
-                    // Refresh student list
                     fetchStudents();
+                    alert(data.message);
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        });
+
+        // --- NEW: EVENT DELEGATION FOR EDIT & DELETE BUTTONS ---
+        document.getElementById('studentTableBody').addEventListener('click', function(e) {
+            // EDIT ACTION TRIGGERED
+            if (e.target.classList.contains('edit')) {
+                const btn = e.target;
+                
+                // Populate the Edit Modal form inputs with data attributes from the row button
+                document.getElementById('edit_id').value = btn.getAttribute('data-id');
+                document.getElementById('edit_fullname').value = btn.getAttribute('data-name');
+                document.getElementById('edit_course').value = btn.getAttribute('data-course');
+                
+                // Programmatically open the Edit Modal
+                const editModal = new bootstrap.Modal(document.getElementById('editStudentModal'));
+                editModal.show();
+            }
+
+            // DELETE ACTION TRIGGERED
+            if (e.target.classList.contains('delete')) {
+                const id = e.target.getAttribute('data-id');
+                
+                if (confirm('Are you sure you want to delete this student?')) {
+                    const formData = new FormData();
+                    formData.append('action', 'delete');
+                    formData.append('id', id);
+
+                    fetch('index.php', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            fetchStudents(); // Refresh table
+                            alert(data.message);
+                        } else {
+                            alert('Error: ' + data.message);
+                        }
+                    })
+                    .catch(error => console.error('Error:', error));
+                }
+            }
+        });
+
+        // --- NEW: HANDLE EDIT FORM SUBMISSION ---
+        document.getElementById('editStudentForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData();
+            formData.append('action', 'update');
+            formData.append('id', document.getElementById('edit_id').value);
+            formData.append('fullname', document.getElementById('edit_fullname').value);
+            formData.append('course', document.getElementById('edit_course').value);
+
+            fetch('index.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Hide modal
+                    const modalEl = document.getElementById('editStudentModal');
+                    const modal = bootstrap.Modal.getInstance(modalEl);
+                    modal.hide();
                     
-                    alert('Student added successfully!');
+                    fetchStudents(); // Refresh table
+                    alert(data.message);
                 } else {
                     alert('Error: ' + data.message);
                 }
